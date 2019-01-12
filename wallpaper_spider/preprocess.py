@@ -3,11 +3,6 @@ import os
 from tqdm import tqdm
 import random
 
-PATH = './data/'
-CROP = './out/crop/'
-STRECH = './out/stretch/'
-TRAINING_RATE = 0.8
-
 
 def stretch_img(path, shape=(256, 256)):
     img = Image.open(path)
@@ -22,12 +17,8 @@ def crop_img(path, shape=(256, 256)):
     return img
 
 
+# Combine image with its gray image horizontally [img, gray_img]
 def color_with_gray(img: Image):
-    """
-    Combine image with its gray image horizontally [img, gray_img]
-    :param img:
-    :return:
-    """
     gray_img = img.convert('L')
     new_img = Image.new('RGB', (512, 256))
 
@@ -41,29 +32,23 @@ def resize(path, method):
     return method(path)
 
 
-def preprocess():
-    if not os.path.exists(CROP):
-        os.makedirs(CROP)
-        os.makedirs(CROP + 'train')
-        os.makedirs(CROP + 'test')
-    if not os.path.exists(STRECH):
-        os.makedirs(STRECH)
-        os.makedirs(STRECH + 'train')
-        os.makedirs(STRECH + 'test')
+def preprocess(input, output, method, train_ratio=0.8):
+    if not os.path.exists(output):
+        os.makedirs(output)
+        os.makedirs(output + 'train')
+        os.makedirs(output + 'test')
 
     files = []
-    for (dirpath, dirnames, filenames) in os.walk(PATH):
+    for (dirpath, dirnames, filenames) in os.walk(input):
         if len(filenames) > 0:
             files.extend([dirpath + '/' + name for name in filenames])
 
     for image in tqdm(files):
-        train = 'train/' if random.random() < TRAINING_RATE else 'test/'
-        # color_with_gray(resize(image, crop_img)).save(CROP + train + image.split('/')[-1])
-        resize(image, crop_img).convert('L').save(CROP + train + image.split('/')[-1])
-        # color_with_gray(resize(image, stretch_img)).save(STRECH + train + image.split('/')[-1])
-        # color_with_gray(resize(image, stretch_img)).save(STRECH + train + image.split('/')[-1])
+        train = 'train/' if random.random() < train_ratio else 'test/'
+        color_with_gray(resize(image, method)).save(output + train + image.split('/')[-1])
 
 
 if __name__ == '__main__':
-    preprocess()
-
+    data = './data/'
+    save = './out/crop/'
+    preprocess(data, save, crop_img)
