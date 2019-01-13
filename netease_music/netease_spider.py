@@ -6,6 +6,7 @@ import codecs
 import urllib
 from bs4 import BeautifulSoup
 from tools import proxy
+from tqdm import tqdm
 
 
 class NetEase:
@@ -58,7 +59,7 @@ class NetEase:
 
     def playlist(self, id: str, field_set=None):
         """ get playlist by id """
-        url = self.url +id
+        url = self.url + id
         playlist_map = {
             'name': lambda doc: doc.h2.text,
             'desc': lambda doc: doc.find(id='album-desc-dot').text,
@@ -68,7 +69,7 @@ class NetEase:
         if field_set is None:
             field_set = set(playlist_map.keys())
 
-        html = requests.get(url % id, headers=self.headers, proxies=self.get_proxy()).text
+        html = requests.get(url, headers=self.headers, proxies=self.get_proxy()).text
         sp = BeautifulSoup(html, 'lxml')
         result = {'id': id}
         for item in field_set:
@@ -84,7 +85,7 @@ class NetEase:
             'players': lambda doc, id: [a['href'] for a in
                                         doc.find('p', {'class': 'des s-fc4'}).find_all('a', {'class': 's-fc7'})],
             'album': lambda doc, id: doc.find_all('p', {'class': 'des s-fc4'})[1].a.text,
-            'lyric': lambda doc, id: self.lyric(id)
+            # 'lyric': lambda doc, id: self.lyric(id)
         }
 
         html = requests.get(url % id, headers=self.headers).text
@@ -148,16 +149,28 @@ def get_songs(categorys):
 
     for cat in categorys:
         cat_file = 'data/songs/' + cat.replace('/', '')
-        if os.path.exists(cat_file):
-            continue
-        os.makedirs(cat_file)
+        if not os.path.exists(cat_file):
+            os.makedirs(cat_file)
 
         with codecs.open('data/playlist/' + cat.replace('/', '')) as f:
             playlists = [item.strip() for item in f.readlines()]
 
-        for playlist in playlists:
-            with codecs.open(cat_file + '/' + playlist.split('=')[1], 'w') as f:
-                f.write(api.playlist(playlist, ['songs'])['songs'])
+        for playlist in tqdm(playlists):
+            # print('getting songs in playlist', playlist)
+            playlist_file = cat_file + '/' + playlist.split('=')[1]
+            if os.path.exists(playlist_file):
+                continue
+            with codecs.open(playlist_file, 'w') as f:
+                f.write('\n'.join(api.playlist(playlist, ['songs'])['songs']))
+
+
+def topN(n, file):
+    api = NetEase([None])
+
+    with open(file) as f:
+        for i in range(n):
+            id = f.readline().split('=')[-1].strip()
+            print(i,api.song(id)['name'])
 
 
 if __name__ == '__main__':
@@ -167,4 +180,5 @@ if __name__ == '__main__':
     3. get song info
     """
     # get_playlists()
-    get_songs(['古典'])
+    # get_songs(['古典'])
+    topN(50, 'data/songs/古典/count')
